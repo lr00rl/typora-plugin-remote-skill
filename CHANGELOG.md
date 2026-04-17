@@ -6,7 +6,26 @@ is pinned by the top-level `VERSION` file (repo source of truth; mirrored in
 `skills/typora-remote/VERSION` for installed skill copies and in
 `.claude-plugin/marketplace.json` for marketplace metadata).
 
-## [Unreleased]
+## [1.3.0] - 2026-04-18
+
+### Documentation
+
+- **Session Model section in SKILL.md.** Explains the hub/broker topology
+  (`role=typora` singleton + N × `role=client`) and why
+  `system.getInfo.sessionCount` is typically ≥ 2 — it counts the caller's
+  own WebSocket. Resolves a common first-time agent misreading of "another
+  agent is already connected".
+- **Authorization Matrix in SKILL.md.** Four-layer table (L0 open / L1
+  authed / L2 Typora-connected / L3 `allowExec=true`) with exact rejection
+  codes and correct remediation per layer. Flags `system.shutdown` as a
+  plain L1 method so agents don't trust "auth" with sidecar lifecycle.
+- **`references/remote-control-api.md` auth tags.** Every RPC method
+  carries an L0/L1/L2/L3 tag so the API reference stays the single
+  source of truth for method-level permissions.
+- **Four new Common Mistakes entries.** Covering: mistaking "Failed to
+  connect" for sidecar-down (plugin-disabled is more common), reading
+  `sessionCount > 1` as adversary, calling `system.shutdown` as "reset",
+  and working around `403 exec disabled` instead of asking the user.
 
 ### Fixed
 
@@ -14,6 +33,12 @@ is pinned by the top-level `VERSION` file (repo source of truth; mirrored in
   version from either the repo-root `VERSION` file or the mirrored
   `skills/typora-remote/VERSION`, so standalone installed skill copies no
   longer silently lose update notices.
+
+### Notes
+
+- No runtime behavior changes. Existing callers of `TyporaRemoteControlClient`
+  / `readLocalLoopbackToken` / `readLocalSettings` (the deprecated alias)
+  see identical semantics.
 
 ## [1.2.0] - 2026-04-18
 
