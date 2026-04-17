@@ -12,6 +12,7 @@
  *   - Opt-out: set env var `TPL_SKILL_DISABLE_UPDATE_CHECK=1`.
  */
 
+import { accessSync, constants } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { homedir, platform } from "node:os";
 import { join, dirname } from "node:path";
@@ -40,15 +41,31 @@ export function getCacheFile() {
   return join(getCacheDir(), "last-check.json");
 }
 
+export function getLocalVersionFileCandidates() {
+  const here = fileURLToPath(new URL(".", import.meta.url));
+  return [
+    // Repository checkout: <repo>/skills/typora-remote/scripts/update-check.mjs
+    join(here, "..", "..", "..", "VERSION"),
+    // Installed skill copy: <skill-root>/scripts/update-check.mjs
+    join(here, "..", "VERSION"),
+  ];
+}
+
 /**
- * Absolute path to the top-level VERSION file.
- * Works regardless of where the skill is copied to
- * (~/.claude/skills/... / ~/.codex/skills/... / direct node invocation).
+ * Absolute path to the local VERSION file for the current layout.
+ * Prefers the repo-root VERSION in source checkouts, then falls back to the
+ * mirrored skill-local VERSION file in installed/copied skill directories.
  */
 export function getLocalVersionFile() {
-  // update-check.mjs lives at <skill-root>/skills/typora-remote/scripts/
-  const here = fileURLToPath(new URL(".", import.meta.url));
-  return join(here, "..", "..", "..", "VERSION");
+  for (const versionFile of getLocalVersionFileCandidates()) {
+    try {
+      accessSync(versionFile, constants.R_OK);
+      return versionFile;
+    } catch {
+      // keep searching
+    }
+  }
+  return getLocalVersionFileCandidates()[0];
 }
 
 export async function readLocalVersion() {

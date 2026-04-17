@@ -103,9 +103,11 @@ When you see the notice, update through the channel you installed with:
 
 Opt out of the check entirely by exporting `TPL_SKILL_DISABLE_UPDATE_CHECK=1`.
 
-The top-level `VERSION` file is the single source of truth for the skill
-version; `.claude-plugin/marketplace.json` mirrors the same value. See
-[`CHANGELOG.md`](./CHANGELOG.md) for release notes.
+The top-level `VERSION` file remains the repo source of truth. That version is
+mirrored into `skills/typora-remote/VERSION` so installed skill copies can
+still resolve their local version, and into `.claude-plugin/marketplace.json`
+for marketplace metadata. See [`CHANGELOG.md`](./CHANGELOG.md) for release
+notes.
 
 ## Quick check
 
@@ -126,8 +128,10 @@ node ~/.claude/skills/typora-remote/scripts/typora-remote-cli.mjs context
 typora-plugin-remote-skill/
 ├── .claude-plugin/
 │   └── marketplace.json           # Agent Skills marketplace manifest
+├── VERSION                        # repo source-of-truth version
 ├── skills/
 │   └── typora-remote/
+│       ├── VERSION                # mirrored for installed skill layouts
 │       ├── SKILL.md               # frontmatter: name, description, license
 │       ├── agents/
 │       │   └── openai.yaml        # Codex / OpenAI skills display metadata

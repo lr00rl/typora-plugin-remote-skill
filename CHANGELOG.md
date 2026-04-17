@@ -2,8 +2,18 @@
 
 All notable changes to this skill are documented in this file. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/) and the version
-is pinned by the top-level `VERSION` file (single source of truth; also mirrored
-in `.claude-plugin/marketplace.json`).
+is pinned by the top-level `VERSION` file (repo source of truth; mirrored in
+`skills/typora-remote/VERSION` for installed skill copies and in
+`.claude-plugin/marketplace.json` for marketplace metadata).
+
+## [Unreleased]
+
+### Fixed
+
+- **Installed skill update checks.** `update-check.mjs` now resolves the local
+  version from either the repo-root `VERSION` file or the mirrored
+  `skills/typora-remote/VERSION`, so standalone installed skill copies no
+  longer silently lose update notices.
 
 ## [1.2.0] - 2026-04-18
 
