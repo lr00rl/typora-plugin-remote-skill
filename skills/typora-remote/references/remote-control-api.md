@@ -9,11 +9,24 @@ This skill assumes Typora is running with the `typora-plugin-lite` `remote-contr
 - Scope: loopback only
 - Auth: `session.authenticate`
 
+## Authorization layers
+
+Every method below carries a layer tag (**[L0]**, **[L1]**, **[L2]**,
+**[L3]**). See the Authorization Matrix in `SKILL.md` for the full meaning
+and failure-code mapping. Short version:
+
+- **L0** — callable without authenticating (entry point only).
+- **L1** — requires a successful `session.authenticate` first.
+- **L2** — L1 **and** a Typora (`role=typora`) session must be connected;
+  otherwise 503 `Typora session is unavailable`.
+- **L3** — L1 **and** the plugin setting `allowExec=true`; otherwise 403
+  `exec disabled by server policy`. Default-deny.
+
 ## Core Methods
 
 ### Session
 
-- `session.authenticate`
+- `session.authenticate` **[L0]**
 
 Params:
 
@@ -24,18 +37,33 @@ Params:
 }
 ```
 
+`role` must be one of `client` (default, external consumers) or `typora`
+(the host-app session; singleton — latest authenticated `role=typora`
+connection becomes the routing target).
+
 ### System
 
-- `system.ping`
-- `system.getInfo`
-- `system.shutdown`
+- `system.ping` **[L1]**
+- `system.getInfo` **[L1]** — returns `sessionCount` counting every live
+  WebSocket, **including the caller's own session**.
+- `system.shutdown` **[L1]** — stops the sidecar. Any authenticated
+  session can invoke this; there is no extra guard. Use only for
+  intentional lifecycle management.
 
 ### Exec
 
-- `exec.run`
-- `exec.start`
-- `exec.kill`
-- `exec.list`
+All four require `allowExec=true` in the plugin settings (default-deny
+since typora-plugin-lite v0.2+):
+
+- `exec.run` **[L3]**
+- `exec.start` **[L3]**
+- `exec.kill` **[L3]**
+- `exec.list` **[L3]**
+
+When `allowExec=false` these methods still pass L1 (401 protection first)
+and then reject with 403 `exec disabled by server policy (allowExec=false)`.
+This ordering guarantees unauthenticated peers cannot probe whether exec
+is enabled.
 
 `exec.run` payload:
 
@@ -50,19 +78,24 @@ Params:
 
 ### Typora
 
-- `typora.getContext`
-- `typora.getDocument`
-- `typora.setDocument`
-- `typora.setSourceMode`
-- `typora.insertText`
-- `typora.openFile`
-- `typora.openFolder`
-- `typora.commands.list`
-- `typora.commands.invoke`
-- `typora.plugins.list`
-- `typora.plugins.setEnabled`
-- `typora.plugins.commands.list`
-- `typora.plugins.commands.invoke`
+All require both L1 (authenticated) **and** an active `role=typora`
+session registered on the sidecar. If Typora has crashed or its plugin
+is disabled, these return 503 `Typora session is unavailable`.
+
+- `typora.getContext` **[L2]** — response wraps any `markdown` field with
+  trust-boundary markers (see SKILL.md Trust Boundaries).
+- `typora.getDocument` **[L2]** — same wrapping.
+- `typora.setDocument` **[L2]**
+- `typora.setSourceMode` **[L2]**
+- `typora.insertText` **[L2]**
+- `typora.openFile` **[L2]**
+- `typora.openFolder` **[L2]**
+- `typora.commands.list` **[L2]**
+- `typora.commands.invoke` **[L2]**
+- `typora.plugins.list` **[L2]**
+- `typora.plugins.setEnabled` **[L2]**
+- `typora.plugins.commands.list` **[L2]**
+- `typora.plugins.commands.invoke` **[L2]**
 
 ## Notifications
 
