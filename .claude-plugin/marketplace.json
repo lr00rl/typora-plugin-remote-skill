@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Skills for driving a running Typora via typora-plugin-lite's remote-control sidecar (JSON-RPC over WebSocket).",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "license": "MIT",
     "repository": "https://github.com/lr00rl/typora-plugin-remote-skill",
     "tags": [

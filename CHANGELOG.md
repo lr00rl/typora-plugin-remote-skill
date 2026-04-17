@@ -5,6 +5,32 @@ loosely based on [Keep a Changelog](https://keepachangelog.com/) and the version
 is pinned by the top-level `VERSION` file (single source of truth; also mirrored
 in `.claude-plugin/marketplace.json`).
 
+## [1.2.0] - 2026-04-18
+
+### Security
+
+- **SKILL.md Trust Boundaries section** — explicitly documents the
+  `<<<TPL_DOC_START id="..." trust="untrusted">>> ... <<<TPL_DOC_END id="..." >>>`
+  markers that typora-plugin-lite v0.2+ wraps around `typora.getDocument` /
+  `typora.getContext` responses. LLM agents are instructed to treat enclosed
+  content as untrusted data, never as instructions.
+- **SKILL.md Security Model section** — documents the threat model: loopback
+  transport, OS-user-scoped token file, explicit token-override env vars, and
+  the default-deny `allowExec` gate on `exec.run` / `exec.start` / `exec.kill`
+  / `exec.list`.
+- **Env var override** — `TPL_TYPORA_TOKEN` + `TPL_TYPORA_URL` bypass the
+  on-disk `settings.json` entirely. Useful for CI / agent runners and for
+  avoiding the "scanning sensitive directories" false positive in some
+  static analyzers.
+- **Helper rename** — `readLocalSettings` is now `readLocalLoopbackToken`;
+  the old name remains as a deprecated alias for back-compat.
+
+### Notes
+
+- This release depends on typora-plugin-lite v0.2+ for the boundary-marker
+  and exec-gate guarantees. With older plugin versions the client still
+  works but gets no hardening.
+
 ## [1.1.0] - 2026-04-18
 
 ### Changed

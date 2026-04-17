@@ -163,9 +163,27 @@ Ask your agent: *"Show me the current file and switch to source mode"*
 | `Remote control settings not found at ...` | Typora is not running, or the `remote-control` plugin is not enabled |
 | `Failed to connect to ws://...` | Sidecar is down — run `Remote Control: Start Local Service` inside Typora |
 | RPC error 403 `Invalid token` | Settings file and sidecar token drifted — restart Typora |
+| RPC error 403 `exec disabled by server policy` | Shell exec is off by default in typora-plugin-lite v0.2+. Open Typora → `Mod+\`` → select `remote-control` → toggle **Allow shell execution**. Sidecar auto-restarts. |
 | RPC error 503 `Typora session is unavailable` | Sidecar is up but Typora's main process isn't connected — restart Typora |
 | Plugin command missing | Plugin is lazy-loaded — enable it first (`enable-plugin <id>`), then `plugin-commands <id>` |
 | `Global WebSocket is not available` | Node version too old — upgrade to Node 22+ |
+
+## Security
+
+- **Loopback only.** The sidecar binds `127.0.0.1` and the bearer token is
+  useless off-machine. The client never transmits the token anywhere except
+  to the loopback WebSocket.
+- **Default-deny on shell exec.** Since typora-plugin-lite v0.2+,
+  `exec.run` / `exec.start` / `exec.kill` / `exec.list` return `403` unless
+  the user explicitly enables `allowExec` in the Plugin Center.
+- **Trust boundaries on document reads.** `typora.getDocument` and
+  `typora.getContext` responses wrap the `markdown` field in
+  `<<<TPL_DOC_START ...>>>` / `<<<TPL_DOC_END ...>>>` markers with a
+  per-response nonce, so enclosed content cannot masquerade as agent
+  instructions. See the Trust Boundaries section in `SKILL.md` for the
+  guarantee the LLM is expected to respect.
+- **Env var token override.** Set `TPL_TYPORA_TOKEN` + `TPL_TYPORA_URL` to
+  skip reading `settings.json` entirely.
 
 ## License
 
