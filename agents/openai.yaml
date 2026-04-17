@@ -1,0 +1,7 @@
+interface:
+  display_name: "Typora Remote"
+  short_description: "Control Typora through the typora-plugin-lite remote sidecar"
+  default_prompt: "Use $typora-remote to inspect or control a running Typora instance through the typora-plugin-lite remote-control plugin."
+
+policy:
+  allow_implicit_invocation: true
