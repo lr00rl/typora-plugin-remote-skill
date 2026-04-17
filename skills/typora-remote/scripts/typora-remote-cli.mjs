@@ -2,6 +2,7 @@
 
 import { readFile } from "node:fs/promises";
 import { TyporaRemoteControlClient, getDefaultSettingsPath } from "./typora-remote-client.mjs";
+import { checkForUpdates } from "./update-check.mjs";
 
 const USAGE = `Usage:
   typora-remote-cli [global-flags] <command> [args...]
@@ -104,7 +105,13 @@ async function readStdin() {
 }
 
 function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    // Don't keep the event loop alive just for this timer — update-check racers
+    // call this after the real work is done, and we don't want a lingering
+    // timer to delay `process.exit`.
+    timer.unref?.();
+  });
 }
 
 async function streamExec(client, execId) {
@@ -262,6 +269,10 @@ async function dispatch(client, command, args) {
 }
 
 async function main() {
+  // Fire-and-forget: kick off the update check before anything else, so it can
+  // overlap I/O with the user's real command. Any error is swallowed inside.
+  const updateCheck = checkForUpdates();
+
   let parsed;
   try {
     parsed = parseGlobalFlags(process.argv.slice(2));
@@ -274,6 +285,9 @@ async function main() {
 
   if (opts.help || rest.length === 0) {
     process.stdout.write(USAGE);
+    // Let the update notice flush if it's close to done, but don't block the
+    // help path for more than a short beat.
+    await Promise.race([updateCheck, wait(200)]);
     process.exit(opts.help ? 0 : 1);
   }
 
@@ -312,6 +326,10 @@ async function main() {
     process.exitCode = 1;
   } finally {
     client.close();
+    // Best-effort: give the update check up to 200ms to finish and print its
+    // notice. Normal runs finish the real command in well over 200ms so this
+    // rarely matters; for fast `ping` it prevents a racing no-op.
+    await Promise.race([updateCheck, wait(200)]);
   }
 }
 

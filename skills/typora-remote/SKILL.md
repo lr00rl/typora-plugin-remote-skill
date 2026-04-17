@@ -46,7 +46,10 @@ node scripts/typora-remote-cli.mjs ping
 If that fails, inspect in order:
 
 1. `node scripts/typora-remote-cli.mjs info`
-2. `~/Library/Application Support/abnerworks.Typora/plugins/data/remote-control/settings.json` (macOS)
+2. Settings file exists at the platform-specific path:
+   - macOS: `~/Library/Application Support/abnerworks.Typora/plugins/data/remote-control/settings.json`
+   - Linux: `~/.local/Typora/data/remote-control/settings.json`
+   - Windows: `%APPDATA%/Typora/plugins/data/remote-control/settings.json`
 3. Whether the Typora-side service is up (run `Remote Control: Start Local Service` inside Typora, or use `--url` + `--token`).
 
 ## Fast Path

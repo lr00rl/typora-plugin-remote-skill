@@ -82,7 +82,30 @@ The client auto-reads the bearer token and host/port from the OS-specific settin
 |----------|---------------|
 | macOS    | `~/Library/Application Support/abnerworks.Typora/plugins/data/remote-control/settings.json` |
 | Windows  | `%APPDATA%/Typora/plugins/data/remote-control/settings.json` |
-| Linux    | `$XDG_CONFIG_HOME/Typora/plugins/data/remote-control/settings.json` |
+| Linux    | `~/.local/Typora/data/remote-control/settings.json` |
+
+## Updating
+
+The CLI pings `raw.githubusercontent.com/lr00rl/typora-plugin-remote-skill/main/VERSION`
+at most once per 24 hours and prints a one-line stderr notice when a newer
+release is available. The check runs fire-and-forget, caches the result
+cross-platform under the OS cache dir, and fails silently on any network or
+parse error.
+
+When you see the notice, update through the channel you installed with:
+
+| Client | Update command |
+|--------|----------------|
+| Claude Code | `/plugin marketplace update` |
+| Codex CLI / TUI | `codex skills update` |
+| `npx skills` | `npx skills install lr00rl/typora-plugin-remote-skill` |
+| Manual clone | `git -C <skill-dir> pull --ff-only` |
+
+Opt out of the check entirely by exporting `TPL_SKILL_DISABLE_UPDATE_CHECK=1`.
+
+The top-level `VERSION` file is the single source of truth for the skill
+version; `.claude-plugin/marketplace.json` mirrors the same value. See
+[`CHANGELOG.md`](./CHANGELOG.md) for release notes.
 
 ## Quick check
 
