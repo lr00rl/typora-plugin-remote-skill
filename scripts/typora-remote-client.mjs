@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 export class TyporaRemoteControlError extends Error {
   constructor(code, message, data) {
     super(message);
+    this.name = "TyporaRemoteControlError";
     this.code = code;
     this.data = data;
   }
@@ -18,34 +19,60 @@ export class TyporaRemoteControlClient {
     this.handlers = new Map();
     this.closed = false;
 
-    ws.addEventListener("message", (event) => {
+    this._onMessage = (event) => {
       this.#handleMessage(String(event.data));
-    });
-
-    ws.addEventListener("close", () => {
+    };
+    this._onClose = () => {
       this.closed = true;
       const error = new Error("Remote control socket closed");
       for (const pending of this.pending.values()) {
         pending.reject(error);
       }
       this.pending.clear();
-    });
+    };
+
+    ws.addEventListener("message", this._onMessage);
+    ws.addEventListener("close", this._onClose);
   }
 
   static async connect(options) {
+    if (!options || typeof options.url !== "string") {
+      throw new Error("connect() requires options.url");
+    }
+    if (!options.token) {
+      throw new Error("connect() requires options.token");
+    }
+
+    if (typeof globalThis.WebSocket !== "function") {
+      throw new Error("Global WebSocket is not available. Use Node.js 22+ (or provide a polyfill).");
+    }
+
     const role = options.role ?? "client";
-    const ws = new WebSocket(options.url);
+    const ws = new globalThis.WebSocket(options.url);
 
     await new Promise((resolve, reject) => {
-      ws.addEventListener("open", () => resolve(), { once: true });
-      ws.addEventListener("error", () => reject(new Error(`Failed to connect to ${options.url}`)), { once: true });
+      const onError = () => {
+        ws.removeEventListener("open", onOpen);
+        reject(new Error(`Failed to connect to ${options.url}`));
+      };
+      const onOpen = () => {
+        ws.removeEventListener("error", onError);
+        resolve();
+      };
+      ws.addEventListener("open", onOpen, { once: true });
+      ws.addEventListener("error", onError, { once: true });
     });
 
     const client = new TyporaRemoteControlClient(ws);
-    await client.call("session.authenticate", {
-      token: options.token,
-      role,
-    });
+    try {
+      await client.call("session.authenticate", {
+        token: options.token,
+        role,
+      });
+    } catch (error) {
+      client.close();
+      throw error;
+    }
     return client;
   }
 
@@ -89,8 +116,20 @@ export class TyporaRemoteControlClient {
   }
 
   close() {
+    if (this.closed) return;
     this.closed = true;
-    this.ws.close();
+    try {
+      this.ws.removeEventListener("message", this._onMessage);
+      this.ws.removeEventListener("close", this._onClose);
+    } catch {}
+    try {
+      this.ws.close();
+    } catch {}
+    const error = new Error("Remote control client closed");
+    for (const pending of this.pending.values()) {
+      pending.reject(error);
+    }
+    this.pending.clear();
   }
 
   async ping() {
@@ -143,7 +182,7 @@ export class TyporaRemoteControlClient {
   }
 
   async setSourceMode(enabled) {
-    return await this.call("typora.setSourceMode", { enabled });
+    return await this.call("typora.setSourceMode", { enabled: !!enabled });
   }
 
   async insertText(text) {
@@ -171,7 +210,7 @@ export class TyporaRemoteControlClient {
   }
 
   async setPluginEnabled(pluginId, enabled) {
-    return await this.call("typora.plugins.setEnabled", { pluginId, enabled });
+    return await this.call("typora.plugins.setEnabled", { pluginId, enabled: !!enabled });
   }
 
   async listPluginCommands(pluginId) {
@@ -180,6 +219,18 @@ export class TyporaRemoteControlClient {
 
   async invokePluginCommand(pluginId, commandId) {
     return await this.call("typora.plugins.commands.invoke", { pluginId, commandId });
+  }
+
+  async waitForMountFolder(target, { timeoutMs = 5000, intervalMs = 150 } = {}) {
+    const expected = typeof target === "string" ? target : null;
+    const startedAt = Date.now();
+    let last = null;
+    while (Date.now() - startedAt < timeoutMs) {
+      last = await this.getContext();
+      if (expected == null || last.mountFolder === expected) return last;
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    return last;
   }
 
   async noteAssistantOpen() {
@@ -235,14 +286,24 @@ export class TyporaRemoteControlClient {
   }
 
   #handleMessage(raw) {
-    const message = JSON.parse(raw);
+    let message;
+    try {
+      message = JSON.parse(raw);
+    } catch {
+      return;
+    }
     if (message.jsonrpc !== "2.0") return;
 
     if (typeof message.method === "string" && message.id == null) {
       const handlers = this.handlers.get(message.method);
       if (!handlers) return;
       for (const handler of handlers) {
-        handler(message.params);
+        try {
+          handler(message.params);
+        } catch (error) {
+          // Never let a user handler corrupt the RPC pump.
+          queueMicrotask(() => { throw error; });
+        }
       }
       return;
     }
@@ -267,7 +328,19 @@ export class TyporaRemoteControlClient {
 }
 
 export async function readLocalSettings(settingsPath = getDefaultSettingsPath()) {
-  const raw = JSON.parse(await readFile(settingsPath, "utf8"));
+  let raw;
+  try {
+    raw = JSON.parse(await readFile(settingsPath, "utf8"));
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      throw new Error(
+        `Remote control settings not found at ${settingsPath}. ` +
+        `Open Typora, enable typora-plugin-lite's "remote-control" plugin, ` +
+        `then re-run this command (or pass --settings / --url and --token).`,
+      );
+    }
+    throw error;
+  }
   if (!raw.host || !raw.port || !raw.token) {
     throw new Error(`Incomplete remote-control settings at ${settingsPath}`);
   }
