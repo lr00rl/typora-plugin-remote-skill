@@ -11,9 +11,12 @@
     "repository": "https://github.com/lr00rl/typora-plugin-remote-skill",
     "tags": [
       "typora",
+      "typora-remote",
       "typora-plugin-lite",
       "remote-control",
       "editor-automation",
+      "markdown-editor",
+      "source-mode",
       "json-rpc",
       "websocket"
     ]

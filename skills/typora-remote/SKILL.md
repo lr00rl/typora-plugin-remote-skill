@@ -1,6 +1,20 @@
 ---
 name: typora-remote
 description: Use when you need to inspect or control a running Typora instance through the typora-plugin-lite remote-control plugin, including reading or replacing markdown, switching files or folders, toggling source mode, invoking built-in plugin commands, or running shell commands through the local sidecar.
+trigger_keywords:
+  - typora
+  - typora remote
+  - typora-remote
+  - typora plugin
+  - typora 连接
+  - typora 状态
+  - typora 检查
+  - typora source mode
+  - typora markdown
+  - typora 打开文件
+  - typora 切换
+  - remote control
+  - 远程控制 typora
 license: MIT
 ---
 
