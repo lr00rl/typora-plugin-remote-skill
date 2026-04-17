@@ -1,0 +1,32 @@
+{
+  "name": "typora-plugin-remote-skill",
+  "owner": {
+    "name": "lr00rl",
+    "url": "https://github.com/lr00rl"
+  },
+  "metadata": {
+    "description": "Skills for driving a running Typora via typora-plugin-lite's remote-control sidecar (JSON-RPC over WebSocket).",
+    "version": "1.0.0",
+    "license": "MIT",
+    "repository": "https://github.com/lr00rl/typora-plugin-remote-skill",
+    "tags": [
+      "typora",
+      "typora-plugin-lite",
+      "remote-control",
+      "editor-automation",
+      "json-rpc",
+      "websocket"
+    ]
+  },
+  "plugins": [
+    {
+      "name": "typora-remote",
+      "description": "Control a running Typora instance: read/replace markdown, switch files/folders, toggle source mode, invoke built-in plugin commands, and run shell commands through the local sidecar.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/typora-remote"
+      ]
+    }
+  ]
+}
