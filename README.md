@@ -119,6 +119,20 @@ typora-plugin-remote-skill/
 └── .gitignore
 ```
 
+## Examples
+
+### Check connection status
+
+Ask your agent: *"Use typora-remote skill to check the connection status"*
+
+![Check Status](assets/check_status.png)
+
+### Query file info & toggle source mode
+
+Ask your agent: *"Show me the current file and switch to source mode"*
+
+![Toggle Source Mode](assets/turn_source_mode.png)
+
 ## Troubleshooting
 
 | Symptom | Fix |
