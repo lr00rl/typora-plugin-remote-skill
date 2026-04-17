@@ -181,6 +181,7 @@ layer a call is on lets you interpret failures without re-reading the code.
 | L1 | L0 + valid token | `system.ping`, `system.getInfo`, `system.shutdown` | 401 `Unauthenticated session` (forgot to authenticate), 403 `Invalid token` (wrong token) |
 | L2 | L1 + Typora connected | `typora.getContext`, `typora.getDocument`, `typora.setDocument`, `typora.setSourceMode`, `typora.insertText`, `typora.openFile`, `typora.openFolder`, `typora.commands.{list,invoke}`, `typora.plugins.{list,setEnabled,commands.list,commands.invoke}` | 503 `Typora session is unavailable` (Typora crashed or disabled the plugin) |
 | L3 | L1 + plugin setting `allowExec=true` | `exec.run`, `exec.start`, `exec.kill`, `exec.list` | 403 `exec disabled by server policy (allowExec=false)` (user must opt in via Plugin Center → remote-control → Security) |
+| **L4** 🔴 | L1 + Typora connected + `allowEval=true` | `typora.eval` | 403 `typora.eval disabled by server policy (allowEval=false)`; or 503 if Typora offline |
 
 What to do on failure:
 
@@ -200,6 +201,24 @@ the sidecar. If a task asks you to "reset" or "restart" the sidecar,
 invoking `shutdown` will also stop it until the user re-launches Typora.
 Prefer asking the user to do a restart through the Plugin Center rather
 than invoking `shutdown` yourself unless explicitly instructed.
+
+🔴 **`typora.eval` (L4) is the maximally powerful capability** this skill
+exposes. The evaluated code runs in the Typora renderer's realm and can:
+
+- import Node builtins (via `window.reqnode('child_process')` etc.) and
+  spawn shell commands **even when `allowExec=false`** — bypassing the
+  L3 gate entirely;
+- read / write arbitrary Typora internals (other open documents, editor
+  state, local storage, clipboard);
+- spawn further RPCs, load files, patch globals;
+- in short: everything an unsandboxed Electron renderer can do.
+
+Because of this, enabling `allowEval` **collapses the rest of the
+authorization hierarchy into itself** — an agent with eval access
+effectively ignores L3. Treat 403-on-eval as a hard boundary; do not
+offer the user workarounds. If the user explicitly wants eval, point
+them at the Plugin Center toggle and wait for them to confirm the
+consequences before proceeding.
 
 ## Trust Boundaries
 
@@ -245,3 +264,4 @@ Properties to rely on:
 - Interpreting `"Failed to connect to ws://127.0.0.1:5619/rpc"` as "sidecar is down" and calling `Remote Control: Start Local Service` on the user's behalf. The more common cause is the user has Typora running but hasn't enabled the `remote-control` plugin at all — ask them first. (Also: sandboxed agent runners like Codex with `--unshare-net` can't reach host loopback even when the sidecar is healthy. In that case escalate to an unsandboxed invocation, don't conclude the service is down.)
 - Reading `info.sessionCount > 1` as evidence of "another agent is already connected". The sidecar includes the session that asked the question (see the Session Model section above). Baseline is `1` (Typora only) or `2` (Typora + your own CLI session).
 - Calling `system.shutdown` to "reset" a flaky state. This stops the sidecar until the user restarts Typora. Prefer reading `system.getInfo` for diagnostics or asking the user to restart via the Plugin Center.
+- Using `typora.eval` (L4) as a "powerful version of run" when `exec.run` returns 403. Eval runs JS in the renderer with full Electron powers; it defeats the entire authorization matrix above it. Never enable `allowEval` just to route around an `allowExec=false` decision — respect the user's earlier default-deny choice.

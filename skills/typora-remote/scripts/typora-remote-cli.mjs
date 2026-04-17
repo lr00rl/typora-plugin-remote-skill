@@ -26,8 +26,11 @@ Commands:
   open-file <abs-path>           Open a markdown file
   open-folder <abs-folder>       Switch mounted folder (verified after 1.2s)
   insert-text <text...>          Insert text at current caret
-  run <command...>               Buffered shell exec
-  start <command...>             Streaming shell exec (Ctrl-C kills it)
+  run <command...>               Buffered shell exec (requires allowExec=true)
+  start <command...>             Streaming shell exec (Ctrl-C kills it; allowExec=true)
+  eval CODE...                   Evaluate JS in the Typora renderer (requires allowEval=true).
+                                 The body runs inside '(() => { ...your code... })()'. Use 'return X' to surface a value.
+  eval-async CODE...             Same as eval, but the wrapping IIFE is async — so 'await' works inside the body.
   exec-list                      List running execs
   kill <execId> [signal]         Kill a running exec (default SIGTERM)
   plugins                        List installed plugins
@@ -46,6 +49,9 @@ Examples:
   typora-remote-cli insert-text "Hello from CLI"
   typora-remote-cli start "pnpm test"
   typora-remote-cli call typora.getContext
+  typora-remote-cli eval 'window.alert("test"); return "shown"'
+  typora-remote-cli eval 'return editor.getFilePath()'
+  typora-remote-cli eval-async 'const r = await fetch("https://example.com"); return r.status'
 `;
 
 class CliError extends Error {}
@@ -175,6 +181,13 @@ async function dispatch(client, command, args) {
       if (args.length === 0) throw new CliError("Missing command");
       printJson(await client.run(args.join(" ")));
       return;
+    case "eval":
+    case "eval-async": {
+      if (args.length === 0) throw new CliError("Missing code");
+      const code = args.join(" ");
+      printJson(await client.evalJs(code, { async: command === "eval-async" }));
+      return;
+    }
     case "start": {
       if (args.length === 0) throw new CliError("Missing command");
       const started = await client.start(args.join(" "));

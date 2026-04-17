@@ -191,6 +191,36 @@ export class TyporaRemoteControlClient {
     return await this.call("typora.getDocument");
   }
 
+  /**
+   * Evaluate arbitrary JavaScript in the Typora renderer.
+   *
+   * Requires the remote-control plugin's `allowEval` setting to be enabled
+   * (default-deny; 403 otherwise). Code runs in the renderer's realm via
+   * `vm.runInThisContext` wrapped in an IIFE, so it can see `window`,
+   * `document`, `editor`, and any Typora globals.
+   *
+   * When `async: true` the IIFE is async, letting the body use `await`;
+   * the method returns after the Promise settles.
+   *
+   * Non-serialisable return values (DOM nodes, functions, symbols) are
+   * coerced to string or null so the RPC reply stays JSON-safe.
+   *
+   * ⚠ This is the strongest capability this skill exposes. An agent with
+   * eval access can bypass every other safeguard, including allowExec.
+   *
+   * @param {string} code  JS source executed inside `(async () => { ... })()`
+   *                       or `(() => { ... })()` depending on `async`.
+   * @param {{ async?: boolean, timeoutMs?: number }} [options]
+   * @returns {Promise<{ result: unknown, async: boolean }>}
+   */
+  async evalJs(code, options = {}) {
+    return await this.call("typora.eval", {
+      code,
+      async: options.async === true,
+      ...(typeof options.timeoutMs === "number" ? { timeoutMs: options.timeoutMs } : {}),
+    });
+  }
+
   async setDocument(markdown) {
     return await this.call("typora.setDocument", { markdown });
   }

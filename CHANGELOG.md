@@ -6,6 +6,59 @@ is pinned by the top-level `VERSION` file (repo source of truth; mirrored in
 `skills/typora-remote/VERSION` for installed skill copies and in
 `.claude-plugin/marketplace.json` for marketplace metadata).
 
+## [2.0.0] - 2026-04-18
+
+### ⚠ BREAKING SECURITY CONTRACT
+
+1.x guaranteed that `allowExec=false` was an upper bound on what the
+agent could do through the skill. **2.0 introduces a new L4 capability
+(`typora.eval`) that exceeds that bound when enabled.** Users who have
+granted `allowEval=true` are effectively ignoring the `allowExec` gate
+below it, because evaluated JS can import Node builtins and spawn shell
+commands regardless.
+
+Security reviewers re-auditing the skill after this release should treat
+`allowEval=true` hosts as equivalent to unrestricted local RCE. The
+default remains `allowEval=false`, so installs that haven't flipped the
+toggle retain 1.x semantics.
+
+### Added
+
+- **`typora.eval` RPC method (L4)**. Evaluates JavaScript inside the
+  Typora renderer via `vm.runInThisContext` with a configurable timeout
+  (default 10s). Wrapped in a sync or async IIFE so the body can declare
+  locals, `return` a value, or `await`.
+- **`TyporaRemoteControlClient.evalJs(code, { async, timeoutMs })`**
+  programmatic helper on the bundled client.
+- **`typora-remote-cli eval CODE...`** and **`typora-remote-cli eval-async CODE...`**
+  CLI subcommands. Examples:
+  ```bash
+  typora-remote-cli eval 'window.alert("test"); return "shown"'
+  typora-remote-cli eval 'return editor.getFilePath()'
+  typora-remote-cli eval-async 'const r = await fetch("https://example.com"); return r.status'
+  ```
+- **SKILL.md L4 row in the Authorization Matrix** and a dedicated red
+  warning explaining that `allowEval` subsumes every weaker gate.
+- **`references/remote-control-api.md`** `typora.eval` entry with payload
+  shape, timeout semantics, and serialisation rules.
+- **One Common Mistakes entry**: "Using `typora.eval` as a powerful
+  version of `run` when `exec.run` returns 403" — agents must not route
+  around a user's default-deny decision on `allowExec`.
+
+### Requires
+
+- typora-plugin-lite with `allowEval` support (the plugin side adds
+  the `--allow-eval` CLI flag, an `allowEval` schema toggle in the
+  Plugin Center, and conditional registration of `typora.eval` in the
+  sidecar). Older plugin releases pre-dating this feature will report
+  method-not-found for `typora.eval` even with `allowEval=true`.
+
+### Notes
+
+- 1.x callers that never touched `typora.eval` see no behaviour change.
+  The existing `TyporaRemoteControlClient` surface is unchanged except
+  for the additive `evalJs()` method.
+
 ## [1.3.0] - 2026-04-18
 
 ### Documentation

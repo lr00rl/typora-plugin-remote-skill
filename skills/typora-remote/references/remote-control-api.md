@@ -21,6 +21,11 @@ and failure-code mapping. Short version:
   otherwise 503 `Typora session is unavailable`.
 - **L3** — L1 **and** the plugin setting `allowExec=true`; otherwise 403
   `exec disabled by server policy`. Default-deny.
+- **L4** 🔴 — L1 + Typora connected + `allowEval=true`; otherwise 403
+  `typora.eval disabled by server policy`. Strictly stronger than L3:
+  the evaluated JS runs in Typora's Electron renderer with full access
+  to host APIs, so enabling L4 effectively collapses L3 into it. Default-deny
+  and NEVER be turned on except on trusted personal-use loopback setups.
 
 ## Core Methods
 
@@ -96,6 +101,33 @@ is disabled, these return 503 `Typora session is unavailable`.
 - `typora.plugins.setEnabled` **[L2]**
 - `typora.plugins.commands.list` **[L2]**
 - `typora.plugins.commands.invoke` **[L2]**
+- `typora.eval` **[L4]** 🔴 — executes arbitrary JavaScript inside the
+  Typora renderer. See warning below.
+
+`typora.eval` payload:
+
+```json
+{
+  "code": "return editor.getFilePath()",
+  "async": false,
+  "timeoutMs": 10000
+}
+```
+
+- `code` is wrapped in an IIFE before execution:
+  - `async: false` (default) → `(() => { <code> })()`
+  - `async: true` → `(async () => { <code> })()` so you can `await`
+- `timeoutMs` caps evaluation at 10s by default. The host uses
+  `vm.runInThisContext({ timeout })` so a hung eval cannot wedge Typora.
+- Response: `{ "result": <serialisable value>, "async": <boolean> }`.
+  Non-JSON-safe values (functions, DOM nodes, symbols) are coerced to
+  string placeholders or `null`.
+- Errors throw JSON-RPC `-32000` with a `Name: message` shape.
+
+Policy: only use `eval` when the task cannot be accomplished via any
+other L2 / L3 method. `allowEval=true` is a strict superset of
+`allowExec=true`; do not ask the user to enable eval as a workaround
+for a 403 on `exec.run`.
 
 ## Notifications
 
